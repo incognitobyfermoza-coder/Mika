@@ -16,107 +16,128 @@ For help getting started with Flutter development, view the
 samples, guidance on mobile development, and a full API reference.
 
 
+# fermoza_new
 
-# 👜 Fermoza + Mika AI Stylist
-> The official e-commerce + AI stylist mobile app for **Fermoza.store**, built with Flutter and powered by OpenAI/Gemini.
+A new Flutter project.
 
-## 🧠 Overview
-**Fermoza App** is a modern e-commerce mobile application that integrates with **Shopify** and features an intelligent stylist assistant — **Mika AI**. Users can browse, shop, and get personalized fashion advice powered by AI trained on the Fermoza catalog.
+## Getting Started
 
-## 📦 Architecture Summary
-| Layer | Description | Stack |
-|-------|--------------|-------|
-| **Frontend** | Flutter app (Android/iOS/Web) | Flutter + Provider + Firebase |
-| **AI Backend (Mika)** | Node.js API serving chat, personalization, and recommendations | Express + OpenAI or Gemini |
-| **Commerce Backend** | Shopify Storefront API | Shopify Store / Checkout Webview |
-| **Deployment** | API hosted via Cloud Run / Render / Shopify App Proxy | HTTPS / CORS-secure endpoint |
+This project is a starting point for a Flutter application.
 
-## 📁 Folder Structure
-fermoza_new/
-├── lib/ # Flutter app source
-│ ├── main.dart
-│ ├── screens/
-│ ├── services/
-│ ├── models/
-│ ├── providers/
-│ └── theme/
-├── mika_api/ # Node.js backend for Mika
-│ ├── index.js
-│ ├── package.json
-│ └── .env / .env.prod
-├── .env # Flutter local env
-├── .env.prod # Flutter production env
-└── README.md
+A few resources to get you started if this is your first Flutter project:
 
-shell
-Copy code
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-## ⚙️ Environment Setup
-### Flutter `.env.prod`
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
+
+
+👜 Fermoza Mobile App
+Official Flutter E-Commerce App for Fermoza.store
+Built for Android & iOS. Powered by Shopify Checkout, Firebase, and Mika AI Stylist.
+
+📌 Overview
+The Fermoza App is a full-featured e-commerce mobile application designed for personalized fashion discovery and seamless checkout using Shopify’s secure hosted checkout.
+
+It includes:
+
+🛍 Product browsing (collections, PDPs, search)
+🛒 Shopping cart with variant support
+🔐 Google / Facebook login
+💳 Secure Shopify Hosted Checkout (webview)
+🧠 Mika AI Stylist – an AI concierge designed to help users style outfits and recommend Fermoza products
+🚚 Order tracking UI
+🔔 Push notifications (FB Live alerts, promos)
+
+
+🧱 Architecture Summary
+Layer	Description	Technologies
+UI + State	Flutter screens & global state	Flutter, Provider
+Backend Commerce	Shopify Storefront API	GraphQL, Storefront API
+Checkout	Shopify Hosted Checkout	WebView
+Push Notifications	Marketing & Live Alerts	Firebase Messaging
+AI Stylist	Mika AI (chat, recommendations, styling tips)	API endpoint (HTTP)
+
+
+📂 Project Structure
+lib/
+ ├─ main.dart
+ ├─ screens/          # All UI screens (Home, PDP, Cart, Checkout, Stylist, Orders, etc.)
+ ├─ services/         # Shopify, Checkout, AI, Tracking, Notifications, Shipping
+ ├─ providers/        # Cart, Auth, Live
+ ├─ models/           # Product, Order, User, Address, StylistProfile
+ ├─ theme/            # Colors, typography, theme
+ ├─ utils/            # Helpers (currency, text, etc.)
+ └─ widgets/          # Reusable UI components
+assets/
+.env
+.env.prod
+README.md
+
+⚙️ Environment Setup
+.env (Development)
+SHOP_DOMAIN=fermoza.myshopify.com
+STOREFRONT_ACCESS_TOKEN=xxxxx
 MIKA_BASE=https://api.fermoza.store
-SHOP_URL=https://fermoza.store
 
-shell
-Copy code
-> If using Shopify App Proxy instead:  
-> `MIKA_BASE=https://fermoza.store/apps/mika`
+.env.prod (Production)
 
-### Mika API `.env`
-PORT=8787
-API_BASE=/api/mika
-GEMINI_API_KEY=YOUR_GEMINI_OR_OPENAI_KEY
+SHOP_DOMAIN=fermoza.myshopify.com
+STOREFRONT_ACCESS_TOKEN=xxxxx
+MIKA_BASE=https://api.fermoza.store
 
-shell
-Copy code
-
-## 🚀 Running Locally
-**Backend**
-```bash
-cd mika_api
-npm install
-npm run dev
-# http://localhost:8787/api/mika/health
-# http://localhost:8787/api/mika/chat
-Flutter
-
-bash
-Copy code
+🚀 Running Locally
 flutter pub get
 flutter run
-# or for prod vars
-flutter run --dart-define-from-file=.env.prod
-🌍 Deployment Options
-Option 1: Dedicated API (Recommended)
-Host Node.js on Cloud Run / Render / Railway, then set:
 
-ini
-Copy code
-MIKA_BASE=https://api.fermoza.store
-Option 3: Shopify App Proxy (Brand-native URL)
+Production build:
+flutter build apk --dart-define-from-file=.env.prod
 
-Configure App Proxy to forward /apps/mika → your API host
+🔐 Authentication
+Google Sign-In
+Facebook Login
+Users are stored locally in AuthService
+Email is passed to Shopify Checkout for identity inside Shopify
 
-Flutter:
+🛒 Checkout Flow (Final)
+The official checkout flow used in production:
+Add to Cart → Sign In → Shopify Secure Checkout (WebView)
+No redundant native checkout steps.
+All orders exist inside Shopify as the single source of truth.
 
-ini
-Copy code
-MIKA_BASE=https://fermoza.store/apps/mika
-🧩 Key Files
-lib/services/mika_service.dart – talks to Mika API, caching
+🧠 Mika AI Stylist
+Mika functions as:
+✓ AI Personal Stylist
+Understands user body type / preferences
+Helps choose outfits
+Suggests Fermoza products
 
-lib/screens/stylist_chat_screen.dart – chat UI
+✓ AI Concierge
+Answers questions
+Helps with product selection
+Knows Fermoza catalog
+Learns from previous conversation context
 
-mika_api/index.js – Express server; forwards to OpenAI or Gemini; returns normalized JSON
+✓ “Buy the Look” (coming back)
 
-🧱 Scaling
-Cloud Run scales to 1000+ concurrent requests/region. For hundreds of chats/day, defaults are fine.
+Provides a curated set of Fermoza items that match user messages like:
 
-🛠 Quick Commands
-Command	Description
-npm run dev	Run Mika API locally
-flutter run	Launch Flutter
-flutter build apk --dart-define-from-file=.env.prod	Build prod APK
+“I need a bag for a wedding outfit.”
+“What should I wear with this dress?”
 
-License
-Proprietary © 2025 Fermoza / Incognito by Fermoza
-'@ | Out-File -Encoding UTF8 README.md
+🧩 Key Technical Files
+
+File	Purpose
+lib/services/shopify_service.dart	All Shopify API operations
+lib/services/checkout_service.dart	Unified checkout creator
+lib/screens/shopify_checkout_screen.dart	Webview checkout
+lib/screens/stylist_chat_screen.dart	Mika chat UI
+lib/services/mika_service.dart	AI stylist backend integration
+
+📦 Deployment
+APK/AAB uploaded to Google Play uses .env.prod automatically.
+
+© License
+Proprietary © 2025 Fermoza

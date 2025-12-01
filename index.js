@@ -6,11 +6,13 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
-app.use(cors({
-  origin: "*",        // allow all (safe because API requires secret key)
-  methods: "GET,POST",
-  allowedHeaders: "Content-Type, Authorization"
-}));
+app.use(
+  cors({
+    origin: "*", // allow all (safe because API requires secret key)
+    methods: "GET,POST",
+    allowedHeaders: "Content-Type, Authorization",
+  })
+);
 
 app.use(express.json({ limit: "5mb" }));
 
@@ -51,8 +53,8 @@ function buildPrompt({ message, messages, profile = {}, catalog = [] }) {
   const catLines = (catalog || [])
     .slice(0, 120)
     .map(
-      (p) =>
-        `- ${p.id} | ${p.title} | ₱${Number(p.price || 0).toFixed(2)}`
+      (item) =>
+        `- ${item.id} | ${item.title} | ₱${Number(item.price || 0).toFixed(2)}`
     )
     .join("\n");
 
@@ -156,11 +158,7 @@ ${catLines}
 // ------------------------------------------------------------------
 // Helper: Call OpenAI Chat Completions and coerce JSON
 // ------------------------------------------------------------------
-async function callOpenAIJSON(
-  prompt,
-  catalog = [],
-  { timeoutMs = 7000 } = {}
-) {
+async function callOpenAIJSON(prompt, catalog = [], { timeoutMs = 7000 } = {}) {
   if (!OPENAI_API_KEY)
     throw new Error("OPENAI_API_KEY is missing (empty after trim).");
 
@@ -242,7 +240,7 @@ async function callOpenAIJSON(
 
     // ✅ Clean + validate product IDs so Mika never returns invalid items
     const validIds = new Set(
-      (catalog || []).map((p) => String(p.id)).filter(Boolean)
+      (catalog || []).map((item) => String(item.id)).filter(Boolean)
     );
 
     // Clean looks
@@ -272,7 +270,8 @@ async function callOpenAIJSON(
     // Clean picks
     result.picks = (result.picks || [])
       .map((pick) => {
-        const pid = String(p.productId || pick.productId || "").trim();
+        // ✅ FIX: use `pick`, not `p`
+        const pid = String(pick.productId || "").trim();
         if (!validIds.has(pid)) return null;
         return {
           productId: pid,
@@ -355,4 +354,3 @@ app.listen(PORT, () => {
     `✅ Mika API listening on http://localhost:${PORT}${API_BASE}`
   );
 });
-

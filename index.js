@@ -6,7 +6,12 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "*",        // allow all (safe because API requires secret key)
+  methods: "GET,POST",
+  allowedHeaders: "Content-Type, Authorization"
+}));
+
 app.use(express.json({ limit: "5mb" }));
 
 const PORT = process.env.PORT || 8787;
@@ -42,6 +47,7 @@ function buildPrompt({ message, messages, profile = {}, catalog = [] }) {
         : JSON.stringify(messages);
   }
 
+  // Catalog lines: id | title | price
   const catLines = (catalog || [])
     .slice(0, 120)
     .map(
@@ -54,50 +60,94 @@ function buildPrompt({ message, messages, profile = {}, catalog = [] }) {
   const profileText = [
     p.gender ? `gender:${p.gender}` : null,
     p.occasion ? `occasion:${p.occasion}` : null,
-    p.colorPref ? `color:${p.colorPref}` : null,
-    p.budget ? `budget:${p.budget}` : null,
+    p.colorPref ? `colorPref:${p.colorPref}` : null,
+    p.sizeTop ? `sizeTop:${p.sizeTop}` : null,
+    p.sizeBottom ? `sizeBottom:${p.sizeBottom}` : null,
+    p.shoeSize ? `shoeSize:${p.shoeSize}` : null,
     p.bodyType ? `bodyType:${p.bodyType}` : null,
+    p.skinTone ? `skinTone:${p.skinTone}` : null,
     p.undertone ? `undertone:${p.undertone}` : null,
+    p.budget ? `budget:${p.budget}` : null,
   ]
     .filter(Boolean)
     .join(", ");
 
   return `
-You are "Mika", the AI stylist for Fermoza (Philippines). Speak in a warm, concise Taglish-boutique tone.
-Prefer bags as the hero item; you may add other store items. Consider Filipino context (humid/rainy weather, commute, travel, office, church, party).
-If "Baguio"/cold → suggest closed shoes/layers.
+You are "Mika", the AI stylist for Fermoza (Philippines).
+Tone: warm, confident, Taglish-boutique. Short and clear, never generic AI.
 
-Return JSON ONLY with this exact shape:
+  Brand rules:
+  - You ONLY recommend products that exist in the Fermoza Shopify catalog provided in the CATALOG section below.
+  - You NEVER invent product IDs, names, types, clothing, colors, accessories, footwear, or bags that are not in the catalog.
+  - If the catalog contains only handbags, your looks MUST revolve ONLY around those handbags. You may describe clothing or makeup suggestions verbally, but you MUST NOT create or reference nonexistent catalog items.
+  - If the catalog contains some blouses, tops, dresses, or accessories, you may include them — but ONLY using the exact product IDs provided.
+  - You are a women’s fashion stylist: create polished, feminine, elegant, modern outfits — but always within what the catalog actually contains.
+  - Fermoza handbags are ALWAYS the hero of the look.
+
+  Philippine context:
+  - Style based on PH climate: humid heat, sudden rain, air-conditioned offices, mall culture, and Baguio trips.
+  - For hot days: suggest breathable outfits verbally if needed. Do NOT invent products not in catalog.
+  - For rainy days: avoid recommending suede or delicate materials unless they exist in the catalog.
+  - For travel: if crossbody bags or secure bags exist in catalog, prioritize them.
+
+  Body-type rules:
+  - Petite: avoid oversized bags if catalog has smaller options.
+  - Curvy: choose structured bags from catalog if available.
+  - Plus-size: avoid recommending tiny bags if they do not flatter the frame.
+  - Use skin tone guidance verbally (never invent product colors not in catalog).
+
+  Accessory & clothing rules:
+  - You may verbally suggest clothing silhouettes (e.g., “pair with a clean blouse”) but ONLY include catalog items when creating looks.
+  - If sunglasses, earrings, necklaces, footwear, or ponchos/scarves exist in the catalog, you may include them. Otherwise only describe them verbally without adding product IDs.
+
+  General aesthetic rules:
+  - Aim for chic, elegant, modern Filipino-friendly styling.
+  - Always output at least ONE complete look using ONLY catalog item IDs.
+  - Never hallucinate. Never output non-catalog product IDs.
+
+You MUST return JSON ONLY with this exact shape:
 
 {
-  "message": "short helpful reply (<= 2 sentences)",
+  "message": "short helpful reply (<= 2 sentences, Taglish, no emojis)",
   "looks": [
     {
       "title": "look name",
-      "reason": "why it matches",
+      "reason": "why it matches this user's lifestyle/body/occasion",
       "items": ["product-id-1","product-id-2"]
     }
   ],
   "picks": [
     { "productId": "id-here", "reason": "1 short reason" }
   ],
-  "beauty": { "colors": ["..."], "makeup": "..." },
-  "advice": { "fit": "...", "weather": "..." }
+  "beauty": {
+    "colors": ["..."],
+    "makeup": "short makeup/hair tip, or \"\" if not relevant"
+  },
+  "advice": {
+    "fit": "1–2 short lines about fit & body confidence",
+    "weather": "1–2 short lines about PH weather adjustment"
+  }
 }
 
-Rules:
-- NEVER invent products or prices. Use ONLY items from the CATALOG below.
-- If there are only bags or few items, still create at least one look using the available items.
+STRICT rules:
+- NEVER invent product IDs, titles, or prices. Use ONLY items from the CATALOG section.
+- Every item in looks[].items and picks[].productId MUST exist in the catalog.
+- Prefer 2–3 items per look when possible (always at least 1 bag if available).
+- If catalog mostly has bags, still create a look where the bag is the star and give styling advice in text.
 - ALWAYS give styling and fit advice even if no clothing products are available.
-- Prefer 2–3 items per look when possible (bag + optional clothing/shoes).
-- Respect body type, occasion, budget, and colors when provided.
+- Respect bodyType, sizeTop/sizeBottom, shoeSize, skinTone, undertone, budget, and occasion when provided.
+- For morena/medium skin, favor colors like white, cream, gold, denim, olive, earth tones when appropriate.
+- For petite / curvy bodies, suggest comfortable fits and avoid anything that will look too heavy or overwhelming.
+- For rain/commute/Baguio contexts, suggest more secure/closed bags and practical shoes; for hot days, suggest lighter outfits.
 - Always return a SINGLE valid JSON object following the schema exactly.
-- If unsure, still build a useful look + simple guidance based on the catalog.
+- If unsure, still build the best possible look + simple guidance using the available catalog.
 
 USER:
 ${userText || "(none)"}
 
-PROFILE: ${profileText || "(none)"}
+PROFILE:
+${profileText || "(none)"}
+
 CATALOG (id | title | price):
 ${catLines}
   `.trim();
@@ -190,6 +240,50 @@ async function callOpenAIJSON(
           : {},
     };
 
+    // ✅ Clean + validate product IDs so Mika never returns invalid items
+    const validIds = new Set(
+      (catalog || []).map((p) => String(p.id)).filter(Boolean)
+    );
+
+    // Clean looks
+    result.looks = (result.looks || [])
+      .map((look) => {
+        const items = Array.isArray(look.items) ? look.items : [];
+        const filteredItems = items
+          .map((id) => String(id))
+          .filter((id) => validIds.has(id));
+
+        if (!filteredItems.length) return null;
+
+        return {
+          title:
+            typeof look.title === "string" && look.title.trim()
+              ? look.title.trim().slice(0, 80)
+              : "Fermoza styled look",
+          reason:
+            typeof look.reason === "string" && look.reason.trim()
+              ? look.reason.trim().slice(0, 200)
+              : "Styled using Fermoza pieces for this user.",
+          items: filteredItems,
+        };
+      })
+      .filter(Boolean);
+
+    // Clean picks
+    result.picks = (result.picks || [])
+      .map((pick) => {
+        const pid = String(p.productId || pick.productId || "").trim();
+        if (!validIds.has(pid)) return null;
+        return {
+          productId: pid,
+          reason:
+            typeof pick.reason === "string" && pick.reason.trim()
+              ? pick.reason.trim().slice(0, 160)
+              : "Good match from Fermoza for this request.",
+        };
+      })
+      .filter(Boolean);
+
     // 🔁 Fallback: if OpenAI gave no looks/picks but we have catalog items,
     // synthesize at least one look + one pick so the app always has something.
     if (Array.isArray(catalog) && catalog.length > 0) {
@@ -261,3 +355,4 @@ app.listen(PORT, () => {
     `✅ Mika API listening on http://localhost:${PORT}${API_BASE}`
   );
 });
+
